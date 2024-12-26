@@ -1,5 +1,6 @@
 import asyncio
 import uuid
+import sqlite3
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -17,8 +18,33 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
-# In-memory queue to store task IDs
-task_queue = asyncio.Queue()
+# 使用 asyncio.PriorityQueue 替换自定义队列
+task_queue = asyncio.PriorityQueue()
+
+# SQLite 数据库初始化
+def init_db():
+    conn = sqlite3.connect('tokens.db')
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS tokens (
+            token TEXT PRIMARY KEY,
+            contribution INTEGER DEFAULT 0,
+            credit INTEGER DEFAULT 0
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def is_token_valid(token: str) -> bool:
+    """
+    检查token是否存在于数据库中
+    """
+    conn = sqlite3.connect('tokens.db')
+    c = conn.cursor()
+    c.execute('SELECT token FROM tokens WHERE token = ?', (token,))
+    result = c.fetchone()
+    conn.close()
+    return result is not None
 
 # Dictionary to store task details {task_id: request_data}
 tasks: Dict[str, Dict] = {}
@@ -49,16 +75,24 @@ class SubmitResultRequest(BaseModel):
     task_id: str
     result: dict
 
-@app.post("/v1/chat/completions")
-async def chat_completions(request: dict):
+@app.post("/{path:path}/v1/chat/completions")
+async def chat_completions(path: str, request: dict):
     """
-    接收用户的聊天完成请求，生成任务ID，将任务加入队列，并等待结果返回。
+    接收用户的聊天完成请求，支持基于token的优先级
     """
     try:
+        # 从路径中提取token
+        parts = path.split('/')
+        token = parts[0] if parts else ""
+        
+        # 设置优先级：有效token为1，否则为10
+        priority = 1 if is_token_valid(token) else 10
+        
         task_id = str(uuid.uuid4())
         tasks[task_id] = request
         task_events[task_id] = asyncio.Event()
-        await task_queue.put(task_id)
+        
+        await task_queue.put((priority, task_id))
         
         # Add timeout mechanism
         try:
@@ -87,7 +121,7 @@ async def fetch_task():
     返回任务ID和请求体。
     """
     try:
-        task_id = await task_queue.get()
+        _, task_id = await task_queue.get()  # 解构优先级和task_id
         request_body = tasks[task_id]
         return {"task_id": task_id, "request_body": request_body}
     except Exception:
@@ -115,6 +149,44 @@ async def list_models():
         "object": "list",
         "data": ACCEPTABLE_MODELS
     }
+
+# 添加管理token的接口
+@app.post("/admin/token")
+async def add_token(token: str, contribution: int = 0, credit: int = 0):
+    """添加或更新token及其相关信息"""
+    conn = sqlite3.connect('tokens.db')
+    c = conn.cursor()
+    c.execute('''
+        INSERT OR REPLACE INTO tokens (token, contribution, credit) 
+        VALUES (?, ?, ?)
+    ''', (token, contribution, credit))
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+# 添加查询token信息的接口
+@app.get("/admin/token/{token}")
+async def get_token_info(token: str):
+    """查询token的信息"""
+    conn = sqlite3.connect('tokens.db')
+    c = conn.cursor()
+    c.execute('SELECT token, contribution, credit FROM tokens WHERE token = ?', (token,))
+    result = c.fetchone()
+    conn.close()
+    
+    if not result:
+        raise HTTPException(status_code=404, detail="Token not found")
+    
+    return {
+        "token": result[0],
+        "contribution": result[1],
+        "credit": result[2]
+    }
+
+# 在应用启动时初始化数据库
+@app.on_event("startup")
+async def startup_event():
+    init_db()
 
 # 添加启动代码
 if __name__ == "__main__":
