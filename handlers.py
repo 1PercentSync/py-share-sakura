@@ -40,17 +40,25 @@ class TaskHandler:
             self._cleanup_task(task_id)
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def get_next_task(self) -> Tuple[str, dict]:
+    async def get_next_task(self, token: str) -> Tuple[str, dict]:
         """Get next task from queue"""
         try:
+            if not is_token_valid(token):
+                raise HTTPException(status_code=403, detail="Invalid token")
+                
             _, task_id = await self.task_queue.get()
             request_body = self.tasks[task_id]
             return task_id, request_body
-        except Exception:
+        except Exception as e:
+            if isinstance(e, HTTPException):
+                raise e
             raise HTTPException(status_code=404, detail="No tasks available")
 
-    def submit_task_result(self, task_id: str, result: dict) -> dict:
+    def submit_task_result(self, token: str, task_id: str, result: dict) -> dict:
         """Submit result for a task"""
+        if not is_token_valid(token):
+            raise HTTPException(status_code=403, detail="Invalid token")
+            
         if task_id in self.tasks:
             self.tasks[task_id]['result'] = result
             self.task_events[task_id].set()

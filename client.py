@@ -4,9 +4,11 @@ import json
 from typing import Dict
 
 class LLMClient:
-    def __init__(self, server_url: str, llama_url: str):
+    def __init__(self, server_url: str, llama_url: str, token: str, model_info: Dict):
         self.server_url = server_url.rstrip('/')
         self.llama_url = llama_url.rstrip('/')
+        self.token = token
+        self.model_info = model_info
         self.session = None
     
     async def start(self):
@@ -32,7 +34,7 @@ class LLMClient:
                 
                 # Submit result back to main server
                 async with self.session.post(
-                    f"{self.server_url}/submit_result",
+                    f"{self.server_url}/{self.token}/submit_result",
                     json={"task_id": task_id, "result": result}
                 ) as submit_response:
                     if submit_response.status != 200:
@@ -46,7 +48,10 @@ class LLMClient:
     async def fetch_and_process(self):
         """Fetch task from server and process it"""
         try:
-            async with self.session.get(f"{self.server_url}/fetch_task") as response:
+            async with self.session.post(
+                f"{self.server_url}/{self.token}/fetch_task",
+                json={"model_info": self.model_info}
+            ) as response:
                 if response.status == 404:
                     # No tasks available
                     return False
@@ -67,7 +72,9 @@ async def main():
     # Initialize client
     client = LLMClient(
         server_url="http://localhost:8000",
-        llama_url="http://localhost:8080"
+        llama_url="http://localhost:8080",
+        token="token",
+        model_info={"id": "sakura-14b-qwen2.5-v1.0-iq4xs"}
     )
     
     await client.start()

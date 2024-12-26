@@ -1,8 +1,8 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from models import SubmitResultRequest, ACCEPTABLE_MODELS
+from models import SubmitResultRequest, ACCEPTABLE_MODELS, FetchTaskRequest
 from database import init_db
 from handlers import TaskHandler
 
@@ -17,7 +17,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# Configure CORS
+# Configurere CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -35,16 +35,27 @@ async def chat_completions(path: str, request: dict):
     """Handle chat completion requests"""
     return await task_handler.process_chat_completion(path, request)
 
-@app.get("/fetch_task")
-async def fetch_task():
+@app.post("/{token}/fetch_task")
+async def fetch_task(token: str, request: FetchTaskRequest):
     """Fetch next task for processing"""
-    task_id, request_body = await task_handler.get_next_task()
+    # Validate model info against ACCEPTABLE_MODELS
+    model_info = request.model_info.dict()
+    acceptable_model = next((m for m in ACCEPTABLE_MODELS if m["id"] == model_info["id"]), None)
+    
+    if not acceptable_model:
+        raise HTTPException(status_code=400, detail="Model not supported")
+        
+    # Validate meta parameters
+    if model_info["meta"] != acceptable_model["meta"]:
+        raise HTTPException(status_code=400, detail="Model parameters mismatch")
+    
+    task_id, request_body = await task_handler.get_next_task(token)
     return {"task_id": task_id, "request_body": request_body}
 
-@app.post("/submit_result")
-async def submit_result(submit: SubmitResultRequest):
+@app.post("/{token}/submit_result")
+async def submit_result(token: str, submit: SubmitResultRequest):
     """Submit processing result"""
-    return task_handler.submit_task_result(submit.task_id, submit.result)
+    return task_handler.submit_task_result(token, submit.task_id, submit.result)
 
 @app.get("/v1/models")
 async def list_models():

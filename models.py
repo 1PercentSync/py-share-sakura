@@ -4,6 +4,16 @@ class SubmitResultRequest(BaseModel):
     task_id: str
     result: dict
 
+class ModelInfo(BaseModel):
+    id: str
+    object: str = "model"
+    created: int = 0
+    owned_by: str
+    meta: dict
+
+class FetchTaskRequest(BaseModel):
+    model_info: ModelInfo
+
 # Define acceptable models
 ACCEPTABLE_MODELS = [
     {
