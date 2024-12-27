@@ -1,44 +1,99 @@
 import sqlite3
+import random
+import string
+from utils import generate_random_password
 
 def init_db():
     """Initialize SQLite database"""
-    conn = sqlite3.connect('tokens.db')
+    conn = sqlite3.connect('data.db')
     c = conn.cursor()
+    
+    # Create users table if not exists
     c.execute('''
-        CREATE TABLE IF NOT EXISTS tokens (
-            token TEXT PRIMARY KEY,
+        CREATE TABLE IF NOT EXISTS users (
+            telegram_id INTEGER PRIMARY KEY,
+            telegram_name TEXT DEFAULT (CAST(telegram_id AS TEXT)),
+            token TEXT NOT NULL,
             contribution INTEGER DEFAULT 0,
-            credit INTEGER DEFAULT 0
+            credit INTEGER DEFAULT 0,
+            total_usage INTEGER DEFAULT 0,
+            daily_usage INTEGER DEFAULT 0,
+            is_banned BOOLEAN DEFAULT 0
         )
     ''')
+    
+    # Reset daily_usage to 0 for all users
+    c.execute('UPDATE users SET daily_usage = 0')
+    
     conn.commit()
     conn.close()
 
-def is_token_valid(token: str) -> bool:
-    """Check if token exists in database"""
-    conn = sqlite3.connect('tokens.db')
+def create_or_update_user(telegram_id: int, telegram_name: str = None) -> str:
+    """
+    Create a new user or update existing user's telegram_name in the database
+    Args:
+        telegram_id: User's Telegram ID
+        telegram_name: User's Telegram name (optional)
+    Returns:
+        str: User's token
+    """
+    conn = sqlite3.connect('data.db')
     c = conn.cursor()
-    c.execute('SELECT token FROM tokens WHERE token = ?', (token,))
-    result = c.fetchone()
+    
+    # Check if user already exists
+    c.execute('SELECT token FROM users WHERE telegram_id = ?', (telegram_id,))
+    existing_user = c.fetchone()
+    
+    if existing_user:
+        # Update telegram_name if provided
+        if telegram_name:
+            c.execute('''
+                UPDATE users 
+                SET telegram_name = ?
+                WHERE telegram_id = ?
+            ''', (telegram_name, telegram_id))
+            conn.commit()
+        token = existing_user[0]
+    else:
+        # Generate random token for new user
+        token = generate_random_password()
+        
+        # Insert new user
+        c.execute('''
+            INSERT INTO users (telegram_id, telegram_name, token)
+            VALUES (?, ?, ?)
+        ''', (telegram_id, telegram_name or str(telegram_id), token))
+        conn.commit()
+    
     conn.close()
-    return result is not None
+    return token
 
-def add_or_update_token(token: str, contribution: int = 0, credit: int = 0):
-    """Add or update token information"""
-    conn = sqlite3.connect('tokens.db')
+def refresh_user_token(telegram_id: int) -> str:
+    """
+    Refresh user's token in the database
+    Args:
+        telegram_id: User's Telegram ID
+    Returns:
+        str: New token, or None if user doesn't exist
+    """
+    conn = sqlite3.connect('data.db')
     c = conn.cursor()
+    
+    # Check if user exists
+    c.execute('SELECT 1 FROM users WHERE telegram_id = ?', (telegram_id,))
+    if not c.fetchone():
+        conn.close()
+        return None
+        
+    # Generate and update new token
+    new_token = generate_random_password()
     c.execute('''
-        INSERT OR REPLACE INTO tokens (token, contribution, credit) 
-        VALUES (?, ?, ?)
-    ''', (token, contribution, credit))
+        UPDATE users 
+        SET token = ?
+        WHERE telegram_id = ?
+    ''', (new_token, telegram_id))
+    
     conn.commit()
     conn.close()
+    return new_token
 
-def get_token_info(token: str):
-    """Get token information"""
-    conn = sqlite3.connect('tokens.db')
-    c = conn.cursor()
-    c.execute('SELECT token, contribution, credit FROM tokens WHERE token = ?', (token,))
-    result = c.fetchone()
-    conn.close()
-    return result 
