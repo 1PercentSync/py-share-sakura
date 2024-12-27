@@ -97,3 +97,119 @@ def refresh_user_token(telegram_id: int) -> str:
     conn.close()
     return new_token
 
+def increase_contribution(telegram_id: int, amount: int = 1) -> bool:
+    """
+    Increase user's contribution by specified amount (default 1)
+    Args:
+        telegram_id: User's Telegram ID
+        amount: Amount to increase (default 1)
+    Returns:
+        bool: True if successful, False if user doesn't exist
+    """
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    
+    # Check if user exists
+    c.execute('SELECT 1 FROM users WHERE telegram_id = ?', (telegram_id,))
+    if not c.fetchone():
+        conn.close()
+        return False
+        
+    # Update contribution
+    c.execute('''
+        UPDATE users 
+        SET contribution = contribution + ?
+        WHERE telegram_id = ?
+    ''', (amount, telegram_id))
+    
+    conn.commit()
+    conn.close()
+    return True
+
+def increase_credit(telegram_id: int, amount: int = -1) -> bool:
+    """
+    Increase user's credit by specified amount (default -1)
+    Args:
+        telegram_id: User's Telegram ID
+        amount: Amount to increase (default -1)
+    Returns:
+        bool: True if successful, False if user doesn't exist
+    """
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    
+    # Check if user exists
+    c.execute('SELECT 1 FROM users WHERE telegram_id = ?', (telegram_id,))
+    if not c.fetchone():
+        conn.close()
+        return False
+        
+    # Update credit
+    c.execute('''
+        UPDATE users 
+        SET credit = credit + ?
+        WHERE telegram_id = ?
+    ''', (amount, telegram_id))
+    
+    conn.commit()
+    conn.close()
+    return True
+
+def increase_total_usage(telegram_id: int, amount: int = 1) -> bool:
+    """
+    Increase user's total_usage by specified amount (default 1)
+    Args:
+        telegram_id: User's Telegram ID
+        amount: Amount to increase (default 1)
+    Returns:
+        bool: True if successful, False if user doesn't exist
+    """
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    
+    # Check if user exists
+    c.execute('SELECT 1 FROM users WHERE telegram_id = ?', (telegram_id,))
+    if not c.fetchone():
+        conn.close()
+        return False
+        
+    # Update total_usage
+    c.execute('''
+        UPDATE users 
+        SET total_usage = total_usage + ?
+        WHERE telegram_id = ?
+    ''', (amount, telegram_id))
+    
+    conn.commit()
+    conn.close()
+    return True
+
+def increase_daily_usage(telegram_id: int, amount: int = 1) -> bool:
+    """
+    Increase user's daily_usage by specified amount (default 1)
+    Args:
+        telegram_id: User's Telegram ID
+        amount: Amount to increase (default 1)
+    Returns:
+        bool: True if successful, False if user doesn't exist
+    """
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    
+    # Check if user exists
+    c.execute('SELECT 1 FROM users WHERE telegram_id = ?', (telegram_id,))
+    if not c.fetchone():
+        conn.close()
+        return False
+        
+    # Update daily_usage
+    c.execute('''
+        UPDATE users 
+        SET daily_usage = daily_usage + ?
+        WHERE telegram_id = ?
+    ''', (amount, telegram_id))
+    
+    conn.commit()
+    conn.close()
+    return True
+
