@@ -12,7 +12,7 @@ def init_db():
     c.execute('''
         CREATE TABLE IF NOT EXISTS users (
             telegram_id INTEGER PRIMARY KEY,
-            telegram_name TEXT DEFAULT (CAST(telegram_id AS TEXT)),
+            telegram_name TEXT NOT NULL,
             token TEXT NOT NULL,
             contribution INTEGER DEFAULT 0,
             credit INTEGER DEFAULT 0,
@@ -287,7 +287,7 @@ def get_user_info(telegram_id: int) -> dict:
 
 def get_top_contributors(limit: int = 5) -> list:
     """
-    Get top N users with highest contribution
+    Get top N users with highest contribution (>0)
     Args:
         limit: Number of users to return (default 5)
     Returns:
@@ -299,6 +299,7 @@ def get_top_contributors(limit: int = 5) -> list:
     c.execute('''
         SELECT telegram_name, contribution
         FROM users
+        WHERE contribution > 0
         ORDER BY contribution DESC
         LIMIT ?
     ''', (limit,))
@@ -309,7 +310,7 @@ def get_top_contributors(limit: int = 5) -> list:
 
 def get_top_credits(limit: int = 5) -> list:
     """
-    Get top N users with highest credit
+    Get top N users with highest credit (>0)
     Args:
         limit: Number of users to return (default 5)
     Returns:
@@ -321,6 +322,7 @@ def get_top_credits(limit: int = 5) -> list:
     c.execute('''
         SELECT telegram_name, credit
         FROM users
+        WHERE credit > 0
         ORDER BY credit DESC
         LIMIT ?
     ''', (limit,))
@@ -331,7 +333,7 @@ def get_top_credits(limit: int = 5) -> list:
 
 def get_top_total_usage(limit: int = 5) -> list:
     """
-    Get top N users with highest total usage
+    Get top N users with highest total usage (>0)
     Args:
         limit: Number of users to return (default 5)
     Returns:
@@ -343,6 +345,7 @@ def get_top_total_usage(limit: int = 5) -> list:
     c.execute('''
         SELECT telegram_name, total_usage
         FROM users
+        WHERE total_usage > 0
         ORDER BY total_usage DESC
         LIMIT ?
     ''', (limit,))
@@ -353,7 +356,7 @@ def get_top_total_usage(limit: int = 5) -> list:
 
 def get_top_daily_usage(limit: int = 5) -> list:
     """
-    Get top N users with highest daily usage
+    Get top N users with highest daily usage (>0)
     Args:
         limit: Number of users to return (default 5)
     Returns:
@@ -365,6 +368,7 @@ def get_top_daily_usage(limit: int = 5) -> list:
     c.execute('''
         SELECT telegram_name, daily_usage
         FROM users
+        WHERE daily_usage > 0
         ORDER BY daily_usage DESC
         LIMIT ?
     ''', (limit,))
@@ -373,3 +377,5 @@ def get_top_daily_usage(limit: int = 5) -> list:
     conn.close()
     return result
 
+if __name__ == "__main__":
+    init_db()

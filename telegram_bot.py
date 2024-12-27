@@ -1,7 +1,7 @@
 import textwrap
 from telegram import Update
 from telegram.ext import Application, CommandHandler
-from database import create_or_update_user, refresh_user_token, get_user_info
+from database import create_or_update_user, refresh_user_token, get_user_info, get_top_contributors, get_top_credits, get_top_total_usage, get_top_daily_usage
 import asyncio
 
 class TelegramBot:
@@ -16,11 +16,20 @@ class TelegramBot:
         self.application.add_handler(CommandHandler("userdata", self.userdata_command))
         self.application.add_handler(CommandHandler("globaldata", self.globaldata_command))
 
-    
+    async def set_commands(self):
+        """Set the bot's command list that appears in the menu"""
+        commands = [
+            ("help", "显示帮助信息"),
+            ("register", "注册账户/获取token/更新显示名称"),
+            ("refresh", "更换新的token"),
+            ("userdata", "查看自己的数据"),
+            ("globaldata", "查看全局统计")
+        ]
+        await self.application.bot.set_my_commands(commands)
 
     async def run(self):
-        await self.application.initialize()
-        await self.application.start()
+        # Set commands before starting the bot
+        await self.set_commands()
         await self.application.run_polling()
 
     async def help_command(self, update: Update, context):
@@ -126,7 +135,40 @@ class TelegramBot:
         
         # Send message with markdown parsing enabled
         await update.message.reply_text(user_data_text, parse_mode="Markdown")
+    
+    async def globaldata_command(self, update: Update, context):
+        # Get top 5 users for each category
+        top_contributors = get_top_contributors(5)
+        top_credits = get_top_credits(5)
+        top_total_usage = get_top_total_usage(5)
+        top_daily_usage = get_top_daily_usage(5)
+        
+        # Format rankings into text
+        def format_ranking(title: str, data: list, unit: str = "") -> str:
+            text = f"\n{title}："
+            for i, (name, value) in enumerate(data, 1):
+                text += f"\n{i}. {name}: {value}{unit}"
+            return text
+        
+        # Create global statistics message
+        global_stats = textwrap.dedent(f"""
+        📊 全局统计数据
+        
+        🏆 贡献榜{format_ranking("贡献值排行", top_contributors)}
+        
+        💰 积分榜{format_ranking("积分排行", top_credits)}
+        
+        📈 总用量榜{format_ranking("总用量排行", top_total_usage)}
+        
+        📊 今日用量榜{format_ranking("今日用量排行", top_daily_usage)}
+        """)
+        
+        # Send message
+        await update.message.reply_text(global_stats)
+    
+    
 
 if __name__ == "__main__":
-    bot = TelegramBot("YOUR_BOT_TOKEN")
-    asyncio.run(bot.run())
+    bot = TelegramBot("7866348862:AAGTbajWm4aV4gqHTSyh94gImIZ8rGHP2_I")
+    bot.set_commands()
+    bot.application.run_polling()
