@@ -213,3 +213,68 @@ def increase_daily_usage(telegram_id: int, amount: int = 1) -> bool:
     conn.close()
     return True
 
+def set_user_ban_status(telegram_id: int, ban: bool = True) -> bool:
+    """
+    Set user's ban status
+    Args:
+        telegram_id: User's Telegram ID
+        ban: True to ban user, False to unban (default True)
+    Returns:
+        bool: True if successful, False if user doesn't exist
+    """
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    
+    # Check if user exists
+    c.execute('SELECT 1 FROM users WHERE telegram_id = ?', (telegram_id,))
+    if not c.fetchone():
+        conn.close()
+        return False
+        
+    # Update ban status
+    c.execute('''
+        UPDATE users 
+        SET is_banned = ?
+        WHERE telegram_id = ?
+    ''', (ban, telegram_id))
+    
+    conn.commit()
+    conn.close()
+    return True
+
+def get_user_info(telegram_id: int) -> dict:
+    """
+    Get user information from database
+    Args:
+        telegram_id: User's Telegram ID
+    Returns:
+        dict: User information including all fields, or None if user doesn't exist
+    """
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    
+    # Get user info
+    c.execute('''
+        SELECT telegram_id, telegram_name, token, contribution, 
+               credit, total_usage, daily_usage, is_banned
+        FROM users 
+        WHERE telegram_id = ?
+    ''', (telegram_id,))
+    
+    user = c.fetchone()
+    conn.close()
+    
+    if not user:
+        return None
+        
+    # Convert tuple to dictionary
+    return {
+        'telegram_id': user[0],
+        'telegram_name': user[1],
+        'token': user[2],
+        'contribution': user[3],
+        'credit': user[4],
+        'total_usage': user[5],
+        'daily_usage': user[6],
+        'is_banned': bool(user[7])
+    }
