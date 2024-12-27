@@ -120,11 +120,12 @@ class TelegramBot:
             await update.message.reply_text("❌ 请先使用 /register 注册账户！")
             return
         
-        # Format user data message
+        # Format user data message with ban status
         user_data_text = textwrap.dedent(f"""
         📊 您的数据统计：
 
         👤 显示名称：{user_info['telegram_name']}
+        🔒 账户状态：{'🚫 已封禁' if user_info['is_banned'] else '✅ 正常'}
         
         📈 数据统计：
         • 贡献值：{user_info['contribution']}
