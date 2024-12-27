@@ -1,5 +1,5 @@
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, CommandHandler
 from database import create_or_update_user, refresh_user_token
 import asyncio
 
@@ -8,9 +8,12 @@ class TelegramBot:
         self.application = Application.builder().token(token).build()
         
         # Add command handlers
-        self.application.add_handler(CommandHandler("start", self.start_command))
-        self.application.add_handler(CommandHandler("token", self.token_command))
-        self.application.add_handler(CommandHandler("refresh", self.refresh_token_command))
+        self.application.add_handler(CommandHandler("start", self.help_command))
+        self.application.add_handler(CommandHandler("help", self.help_command))
+        self.application.add_handler(CommandHandler("register", self.register_command))
+        self.application.add_handler(CommandHandler("refresh", self.refresh_command))
+        self.application.add_handler(CommandHandler("userdata", self.userdata_command))
+        self.application.add_handler(CommandHandler("globaldata", self.globaldata_command))
 
     async def run(self):
         await self.application.initialize()

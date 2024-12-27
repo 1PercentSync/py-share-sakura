@@ -129,6 +129,7 @@ def increase_contribution(telegram_id: int, amount: int = 1) -> bool:
 def increase_credit(telegram_id: int, amount: int = -1) -> bool:
     """
     Increase user's credit by specified amount (default -1)
+    Credit will not go below 0
     Args:
         telegram_id: User's Telegram ID
         amount: Amount to increase (default -1)
@@ -138,18 +139,23 @@ def increase_credit(telegram_id: int, amount: int = -1) -> bool:
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     
-    # Check if user exists
-    c.execute('SELECT 1 FROM users WHERE telegram_id = ?', (telegram_id,))
-    if not c.fetchone():
+    # Check if user exists and get current credit
+    c.execute('SELECT credit FROM users WHERE telegram_id = ?', (telegram_id,))
+    result = c.fetchone()
+    if not result:
         conn.close()
         return False
+    
+    current_credit = result[0]
+    # Calculate new credit, ensure it doesn't go below 0
+    new_credit = max(0, current_credit + amount)
         
     # Update credit
     c.execute('''
         UPDATE users 
-        SET credit = credit + ?
+        SET credit = ?
         WHERE telegram_id = ?
-    ''', (amount, telegram_id))
+    ''', (new_credit, telegram_id))
     
     conn.commit()
     conn.close()
@@ -278,3 +284,92 @@ def get_user_info(telegram_id: int) -> dict:
         'daily_usage': user[6],
         'is_banned': bool(user[7])
     }
+
+def get_top_contributors(limit: int = 5) -> list:
+    """
+    Get top N users with highest contribution
+    Args:
+        limit: Number of users to return (default 5)
+    Returns:
+        list: List of tuples (telegram_name, contribution)
+    """
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    
+    c.execute('''
+        SELECT telegram_name, contribution
+        FROM users
+        ORDER BY contribution DESC
+        LIMIT ?
+    ''', (limit,))
+    
+    result = c.fetchall()
+    conn.close()
+    return result
+
+def get_top_credits(limit: int = 5) -> list:
+    """
+    Get top N users with highest credit
+    Args:
+        limit: Number of users to return (default 5)
+    Returns:
+        list: List of tuples (telegram_name, credit)
+    """
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    
+    c.execute('''
+        SELECT telegram_name, credit
+        FROM users
+        ORDER BY credit DESC
+        LIMIT ?
+    ''', (limit,))
+    
+    result = c.fetchall()
+    conn.close()
+    return result
+
+def get_top_total_usage(limit: int = 5) -> list:
+    """
+    Get top N users with highest total usage
+    Args:
+        limit: Number of users to return (default 5)
+    Returns:
+        list: List of tuples (telegram_name, total_usage)
+    """
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    
+    c.execute('''
+        SELECT telegram_name, total_usage
+        FROM users
+        ORDER BY total_usage DESC
+        LIMIT ?
+    ''', (limit,))
+    
+    result = c.fetchall()
+    conn.close()
+    return result
+
+def get_top_daily_usage(limit: int = 5) -> list:
+    """
+    Get top N users with highest daily usage
+    Args:
+        limit: Number of users to return (default 5)
+    Returns:
+        list: List of tuples (telegram_name, daily_usage)
+    """
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    
+    c.execute('''
+        SELECT telegram_name, daily_usage
+        FROM users
+        ORDER BY daily_usage DESC
+        LIMIT ?
+    ''', (limit,))
+    
+    result = c.fetchall()
+    conn.close()
+    return result
+
