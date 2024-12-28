@@ -1,63 +1,60 @@
-from collections import deque
+from queue import Queue
 from typing import Any, Optional
+from enum import Enum
 
-class PriorityQueue:
+class QueueMode(Enum):
+    PURE_FIFO = 1      # Pure FIFO mode
+    TWO_LEVEL = 2      # Two-level priority queue
+    STRICT_PRIORITY = 3 # Strict priority queue
+
+class PriorityItem:
+    def __init__(self, item: Any, priority: int = 0, sequence: int = 0):
+        self.item = item
+        self.priority = priority
+        self.sequence = sequence  # For maintaining FIFO order
+    
+    def __lt__(self, other):
+        return self.priority > other.priority or \
+               (self.priority == other.priority and self.sequence < other.sequence)
+
+class CustomQueue:
     def __init__(self):
-        """Initialize queue to store tasks with priorities"""
-        self.queue = deque()  # store tuples of (priority, order, item)
-        self.counter = 0  # for maintaining FIFO order within same priority
+        self.queue = Queue()
+        self.sequence_counter = 0
     
-    def push(self, item: Any, priority: int = 0) -> None:
-        """Add an item to the queue with given priority"""
-        if priority < 0:
-            raise ValueError("Priority must be non-negative")
-        self.queue.append((priority, self.counter, item))
-        self.counter += 1
+    def put(self, item: Any, priority: int = 0) -> None:
+        """Put an item into the queue with specified priority"""
+        priority_item = PriorityItem(item, priority, self.sequence_counter)
+        self.sequence_counter += 1
+        self.queue.put(priority_item)
     
-    def pop(self, mode: int) -> Optional[Any]:
-        """
-        Return the next item based on mode rules without removing it
-        mode 1: pure FIFO
-        mode 2: two-level FIFO (priority > 0 first, then priority = 0)
-        mode 3: strict priority order
-        """
-        if not self.queue:
+    def get(self, mode: QueueMode = QueueMode.PURE_FIFO) -> Optional[Any]:
+        """Get an item from the queue based on the specified mode"""
+        if self.queue.empty():
             return None
             
-        if mode == 1:
-            # Mode 1: pure FIFO
-            return self.queue[0][2]
+        # Convert queue to list for sorting
+        items = []
+        while not self.queue.empty():
+            items.append(self.queue.get())
             
-        elif mode == 2:
-            # Mode 2: two-level FIFO
-            # First check if there are any items with priority > 0
-            for priority, _, item in self.queue:
-                if priority > 0:
-                    return item
-            # If no priority items found, return the first item
-            return self.queue[0][2]
+        if mode == QueueMode.PURE_FIFO:
+            # Sort only by sequence number
+            items.sort(key=lambda x: x.sequence)
+        elif mode == QueueMode.TWO_LEVEL:
+            # Sort by priority > 0 first, then by sequence
+            items.sort(key=lambda x: (-1 if x.priority > 0 else 0, x.sequence))
+        else:  # STRICT_PRIORITY
+            # Sort by priority first, then by sequence
+            items.sort()
             
-        elif mode == 3:
-            # Mode 3: strict priority order
-            max_priority = -1
-            result_item = None
-            earliest_counter = float('inf')
+        # Get first item and put back the rest
+        result = items[0].item
+        for item in items[1:]:
+            self.queue.put(item)
             
-            # Find item with highest priority (and earliest entry if tied)
-            for priority, counter, item in self.queue:
-                if priority > max_priority or \
-                   (priority == max_priority and counter < earliest_counter):
-                    max_priority = priority
-                    earliest_counter = counter
-                    result_item = item
-            
-            return result_item
-        else:
-            raise ValueError("Mode must be 1, 2, or 3")
-
-    def remove(self, item: Any) -> None:
-        """Remove the specified item from queue"""
-        for i, (_, _, queued_item) in enumerate(self.queue):
-            if queued_item == item:
-                del self.queue[i]
-                return
+        return result
+    
+    def empty(self) -> bool:
+        """Check if the queue is empty"""
+        return self.queue.empty()
