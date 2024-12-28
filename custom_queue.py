@@ -58,3 +58,24 @@ class CustomQueue:
     def empty(self) -> bool:
         """Check if the queue is empty"""
         return self.queue.empty()
+
+class Task:
+    def __init__(self, 
+                 request_body: dict,
+                 requester_id: int,
+                 is_urgent: bool = False,
+                 is_retry: bool = False,
+                 first_provider_id: int = None):
+        """
+        Args:
+            request_body: The POST request body containing task details
+            requester_id: ID of the user requesting the task
+            is_urgent: Whether this is an urgent request due to computing power shortage
+            is_retry: Whether this is a retry attempt
+            first_provider_id: ID of the first provider who processed this task
+        """
+        self.request_body = request_body
+        self.requester_id = requester_id
+        self.is_urgent = is_urgent
+        self.is_retry = is_retry
+        self.first_provider_id = first_provider_id
