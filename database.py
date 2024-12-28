@@ -1,6 +1,4 @@
 import sqlite3
-import random
-import string
 from utils import generate_random_password
 
 def init_db():
