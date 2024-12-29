@@ -70,29 +70,21 @@ async def chat_completions_handler(user_token: str, model_name: str, request: di
         result = await asyncio.wait_for(result_future, timeout=60)
         return result
     except asyncio.TimeoutError:
-        # If task is claimed, enter monitoring loop
         if task.first_provider_id is not None:
-            remaining_time = 120  # Additional timeout
-            check_interval = 5  # Check every 5 seconds
-            
-            while remaining_time > 0:
-                current_time = time.time()
-                # Check if current provider has taken too long
-                if task.claimed_at and current_time - task.claimed_at > 60 and task.try_count < 2:
-                    # Reset task for retry
-                    task.first_provider_id = None
-                    task.claimed_at = None
+            while True:
+                if time.time() - task.claimed_at > 60 and task.try_count < 2:
                     task.try_count += 1
+                    # 重新加入队列，使用原始的优先级
+                    app.state.task_queue.put(task, user_priority)
                     try:
-                        # Wait for new provider
-                        result = await asyncio.wait_for(result_future, timeout=remaining_time)
+                        result = await asyncio.wait_for(result_future, timeout=60)
                         return result
                     except asyncio.TimeoutError:
-                        pass
-                    break  # Exit loop if retry timeout
+                        break
+                
+                await asyncio.sleep(1)
         
-        # If total 180 seconds timeout, check retry_count
-        if task.retry_count > 1:
+        if task.try_count > 1:
             # Set temporary ban for 3 minutes (180 seconds)
             set_temp_ban(user_id, int(time.time()) + 180)
         
