@@ -3,7 +3,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import init_db
-from handlers import list_models_handler
+from handlers import list_models_handler, chat_completions_handler
+from models import get_default_model
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -26,10 +27,15 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
+@app.post("/{user_token}/v1/chat/completions")
+async def chat_completions_default(user_token: str, request: dict):
+    """Handle chat completion request with default model"""
+    return await chat_completions_handler(user_token, get_default_model(), request)
+
 @app.post("/{user_token}/{model_name}/v1/chat/completions")
 async def chat_completions(user_token: str, model_name: str, request: dict):
     # Handle chat completion request with user token and model name
-    return {"message": "Hello World"}
+    return await chat_completions_handler(user_token, model_name, request)
 
 @app.post("/{user_token}/fetch_task")
 async def fetch_task(user_token: str, request: dict):
@@ -39,6 +45,11 @@ async def fetch_task(user_token: str, request: dict):
 async def submit_result(user_token: str, submit: dict):
     """Submit processing result"""
     return {"message": "Hello World"}
+
+@app.get("/{user_token}/v1/models")
+async def list_default_models(user_token: str):
+    """Handle request without model_name by using default model"""
+    return await list_models_handler(user_token, get_default_model())
 
 @app.get("/{user_token}/{model_name}/v1/models")
 async def list_models(user_token: str, model_name: str):
