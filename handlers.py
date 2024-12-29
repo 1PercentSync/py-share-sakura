@@ -1,6 +1,6 @@
 from database import is_token_valid, get_user_credit
 from fastapi import HTTPException, FastAPI
-from models import is_valid_model, AVAILABLE_MODELS
+from models import is_valid_model, AVAILABLE_MODELS, verify_model_meta
 from utils import parse_user_token
 from custom_queue import Task
 import uuid
@@ -86,7 +86,49 @@ async def chat_completions_handler(user_token: str, model_name: str, request: di
         )
     
 async def fetch_task_handler(user_token: str, submit: dict, app: FastAPI):
-    return {"message": "Hello World"}
+    # Parse user token into user_id and token
+    try:
+        user_id, token = parse_user_token(user_token)
+    except ValueError:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": {
+                    "message": "Invalid user token format", 
+                    "type": "invalid_request_error",
+                    "param": "user_token",
+                    "code": "invalid_token"
+                }
+            }
+        )
+    
+    # Validate user token
+    if not is_token_valid(user_id, token):
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": {
+                    "message": "Invalid token or banned",
+                    "type": "authentication_error",
+                    "param": "user_token",
+                    "code": "invalid_token"
+                }
+            }
+        )
+        
+    # Verify model meta
+    if not verify_model_meta(submit):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": {
+                    "message": "Invalid model meta",
+                    "type": "invalid_request_error",
+                    "param": "model_meta",
+                    "code": "invalid_model"
+                }
+            }
+        )
 
 async def submit_result_handler(user_token: str, submit: dict):
     return {"message": "Hello World"}

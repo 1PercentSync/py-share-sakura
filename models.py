@@ -22,3 +22,26 @@ def get_default_model() -> str:
 
 def is_valid_model(model_name: str) -> bool:
     return model_name in AVAILABLE_MODELS
+
+def verify_model_meta(model_meta: dict) -> bool:
+    # Ensure 'data' is a list and has at least one item
+    if not model_meta.get("data") or not isinstance(model_meta["data"], list):
+        return False
+    
+    # Get the first model's data
+    model_data = model_meta["data"][0]
+    
+    # Check if the model ID exists in AVAILABLE_MODELS
+    model_id = model_data.get("id")
+    if model_id not in AVAILABLE_MODELS:
+        return False
+    
+    # Get the model's meta from AVAILABLE_MODELS
+    available_meta = AVAILABLE_MODELS[model_id]["meta"]
+    
+    # Compare each key in the meta, ignoring 'created'
+    for key, value in model_data["meta"].items():
+        if key != "created" and available_meta.get(key) != value:
+            return False
+    
+    return True
