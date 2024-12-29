@@ -3,7 +3,6 @@ import uuid
 from fastapi import HTTPException
 from typing import Dict, Tuple
 
-from database import is_token_valid
 
 class TaskHandler:
     def __init__(self):
@@ -13,32 +12,7 @@ class TaskHandler:
 
     async def process_chat_completion(self, path: str, request: dict) -> dict:
         """Process chat completion request"""
-        task_id = str(uuid.uuid4())
-        try:
-            # Extract token from path
-            parts = path.split('/')
-            token = parts[0] if parts else ""
-            
-            # Set priority based on token validity
-            priority = 1 if is_token_valid(token) else 10
-            
-            self.tasks[task_id] = request
-            self.task_events[task_id] = asyncio.Event()
-            
-            await self.task_queue.put((priority, task_id))
-            
-            try:
-                await asyncio.wait_for(self.task_events[task_id].wait(), timeout=30)
-            except asyncio.TimeoutError:
-                self._cleanup_task(task_id)
-                raise HTTPException(status_code=408, detail="Request timeout")
-                
-            result = self.tasks.pop(task_id)['result']
-            self.task_events.pop(task_id)
-            return result
-        except Exception as e:
-            self._cleanup_task(task_id)
-            raise HTTPException(status_code=500, detail=str(e))
+        return
 
     async def get_next_task(self, token: str) -> Tuple[str, dict]:
         """Get next task from queue"""
