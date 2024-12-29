@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import init_db
-from handlers import list_models_handler, chat_completions_handler
+from handlers import list_models_handler, chat_completions_handler, fetch_task_handler, submit_result_handler
 from models import get_default_model
 from custom_queue import CustomQueue  # 导入 CustomQueue 类
 
@@ -43,12 +43,12 @@ async def chat_completions(user_token: str, model_name: str, request: dict):
 
 @app.post("/{user_token}/fetch_task")
 async def fetch_task(user_token: str, request: dict):
-    return {"message": "Hello World"}
+    return await fetch_task_handler(user_token, request, app)
 
 @app.post("/{user_token}/submit_result")
 async def submit_result(user_token: str, submit: dict):
     """Submit processing result"""
-    return {"message": "Hello World"}
+    return await submit_result_handler(user_token, submit, app)
 
 @app.get("/{user_token}/v1/models")
 async def list_default_models(user_token: str):

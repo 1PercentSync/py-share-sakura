@@ -85,11 +85,11 @@ async def chat_completions_handler(user_token: str, model_name: str, request: di
             }
         )
     
-async def fetch_task_handler(user_token: str, submit: dict):
-    pass
+async def fetch_task_handler(user_token: str, submit: dict, app: FastAPI):
+    return {"message": "Hello World"}
 
 async def submit_result_handler(user_token: str, submit: dict):
-    pass
+    return {"message": "Hello World"}
 
 async def list_models_handler(user_token: str, model_name: str):
     # Parse user token into user_id and token
