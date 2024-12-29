@@ -477,5 +477,20 @@ def is_token_valid(telegram_id: int, token: str) -> bool:
     # Check token match
     return token == stored_token
 
+def get_user_credit(telegram_id: int) -> int:
+    """
+    Get user's credit
+    Args:
+        telegram_id: User's Telegram ID
+    Returns:
+        int: User's credit
+    """
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    c.execute('SELECT credit FROM users WHERE telegram_id = ?', (telegram_id,))
+    result = c.fetchone()
+    conn.close()
+    return result[0] if result else 0
+
 if __name__ == "__main__":
     init_db()
