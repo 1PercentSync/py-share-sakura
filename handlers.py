@@ -65,13 +65,23 @@ async def chat_completions_handler(user_token: str, model_name: str, request: di
     app.state.task_queue.put(task, user_priority)
     
     try:
-        result = await asyncio.wait_for(result_future, timeout=180)  # 在这里等待，直到有人调用 future.set_result()
+        # Initial timeout of 60 seconds
+        result = await asyncio.wait_for(result_future, timeout=60)
         return result
     except asyncio.TimeoutError:
-        # 1. 从 pending_results 中移除
+        # Check if first_provider_id is set
+        if task.first_provider_id is not None:
+            try:
+                # Extend timeout by 120 seconds
+                result = await asyncio.wait_for(result_future, timeout=120)
+                return result
+            except asyncio.TimeoutError:
+                pass
+        
+        # Remove from pending_results
         app.state.pending_results.pop(task_id, None)
         
-        # 2. 从任务队列中移除
+        # Remove from task_queue
         await app.state.task_queue.remove_task(task_id)
         
         raise HTTPException(
