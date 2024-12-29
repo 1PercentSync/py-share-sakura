@@ -5,12 +5,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
 from handlers import list_models_handler, chat_completions_handler
 from models import get_default_model
+from custom_queue import CustomQueue  # 导入 CustomQueue 类
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handle startup and shutdown events"""
     # Startup
     init_db()
+    # Initialize a custom queue
+    task_queue = CustomQueue()
     yield
     # Shutdown
     # Add cleanup code here if needed
