@@ -1,10 +1,11 @@
-from database import is_token_valid, get_user_credit
+from database import is_token_valid, get_user_credit, set_temp_ban
 from fastapi import HTTPException, FastAPI
 from models import is_valid_model, AVAILABLE_MODELS, verify_model_meta
 from utils import parse_user_token
 from custom_queue import Task
 import uuid
 import asyncio
+import time
 
 async def chat_completions_handler(user_token: str, model_name: str, request: dict, app: FastAPI):
     # Parse user token into user_id and token
@@ -77,6 +78,11 @@ async def chat_completions_handler(user_token: str, model_name: str, request: di
                 return result
             except asyncio.TimeoutError:
                 pass
+        
+        # If total 180 seconds timeout, check retry_count
+        if task.retry_count > 1:
+            # Set temporary ban for 3 minutes (180 seconds)
+            set_temp_ban(user_id, int(time.time()) + 180)
         
         # Remove from pending_results
         app.state.pending_results.pop(task_id, None)
