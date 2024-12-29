@@ -13,7 +13,8 @@ async def lifespan(app: FastAPI):
     # Startup
     init_db()
     # Initialize a custom queue
-    task_queue = CustomQueue()
+    app.state.task_queue = CustomQueue()
+    app.state.pending_results = {}
     yield
     # Shutdown
     # Add cleanup code here if needed
@@ -33,12 +34,12 @@ app.add_middleware(
 @app.post("/{user_token}/v1/chat/completions")
 async def chat_completions_default(user_token: str, request: dict):
     """Handle chat completion request with default model"""
-    return await chat_completions_handler(user_token, get_default_model(), request)
+    return await chat_completions_handler(user_token, get_default_model(), request, app)
 
 @app.post("/{user_token}/{model_name}/v1/chat/completions")
 async def chat_completions(user_token: str, model_name: str, request: dict):
     # Handle chat completion request with user token and model name
-    return await chat_completions_handler(user_token, model_name, request)
+    return await chat_completions_handler(user_token, model_name, request, app)
 
 @app.post("/{user_token}/fetch_task")
 async def fetch_task(user_token: str, request: dict):

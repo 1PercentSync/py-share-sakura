@@ -1,6 +1,7 @@
 from queue import Queue
 from typing import Any, Optional
 from enum import Enum
+import uuid
 
 class QueueMode(Enum):
     PURE_FIFO = 1      # Pure FIFO mode
@@ -65,7 +66,8 @@ class Task:
                  requester_id: int,
                  is_urgent: bool = False,
                  is_retry: bool = False,
-                 first_provider_id: int = None):
+                 first_provider_id: int = None,
+                 task_id: str = None):
         """
         Args:
             request_body: The POST request body containing task details
@@ -73,9 +75,11 @@ class Task:
             is_urgent: Whether this is an urgent request due to computing power shortage
             is_retry: Whether this is a retry attempt
             first_provider_id: ID of the first provider who processed this task
+            task_id: Unique identifier for the task
         """
         self.request_body = request_body
         self.requester_id = requester_id
         self.is_urgent = is_urgent
         self.is_retry = is_retry
         self.first_provider_id = first_provider_id
+        self.task_id = task_id or str(uuid.uuid4())

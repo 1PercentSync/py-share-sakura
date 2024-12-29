@@ -1,9 +1,12 @@
-from database import is_token_valid
-from fastapi import HTTPException
+from database import is_token_valid, get_user_credit
+from fastapi import HTTPException, FastAPI
 from models import is_valid_model, AVAILABLE_MODELS
 from utils import parse_user_token
+from custom_queue import Task
+import uuid
+import asyncio
 
-async def chat_completions_handler(user_token: str, model_name: str, request: dict):
+async def chat_completions_handler(user_token: str, model_name: str, request: dict, app: FastAPI):
     # Parse user token into user_id and token
     try:
         user_id, token = parse_user_token(user_token)
@@ -34,6 +37,7 @@ async def chat_completions_handler(user_token: str, model_name: str, request: di
             }
         )
         
+    # Validate model name
     if not is_valid_model(model_name):
         raise HTTPException(
             status_code=400,
@@ -48,6 +52,26 @@ async def chat_completions_handler(user_token: str, model_name: str, request: di
             }
         )
 
+    # Get user priority
+    user_priority = get_user_credit(user_id)
+    
+    #Construct task
+    task_id = str(uuid.uuid4())
+    result_future = asyncio.Future()
+    app.state.pending_results[task_id] = result_future
+    task = Task(request_body=request, requester_id=user_id, is_urgent=user_priority > 0, is_retry=False, first_provider_id=None, task_id=task_id)
+    
+    #Add task to queue
+    app.state.task_queue.put(task, user_priority)
+    
+    try:
+        result = await asyncio.wait_for(result_future, timeout=180)  # 在这里等待，直到有人调用 future.set_result()
+        return result
+    except asyncio.TimeoutError:
+        return {"error": "请求超时"}
+    
+
+    
 async def list_models_handler(user_token: str, model_name: str):
     # Parse user token into user_id and token
     try:
