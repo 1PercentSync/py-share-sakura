@@ -79,10 +79,14 @@ class Task:
     def __init__(self, 
                  request_body: dict,
                  requester_id: int,
+                 task_id: str,
                  is_urgent: bool = False,
                  try_count: int = 0,
                  first_provider_id: int = None,
-                 task_id: str = None):
+                 created_at: float = time.time(),
+                 claimed_at: float = None,
+                 response_body: dict = None
+                 ):
         """
         Args:
             request_body: The POST request body containing task details
@@ -97,6 +101,7 @@ class Task:
         self.is_urgent = is_urgent
         self.try_count = try_count
         self.first_provider_id = first_provider_id
-        self.task_id = task_id or str(uuid.uuid4())
-        self.created_at = time.time()  # Add creation timestamp
-        self.claimed_at = None
+        self.task_id = task_id
+        self.created_at = created_at
+        self.claimed_at = claimed_at
+        self.response_body = response_body
