@@ -15,6 +15,7 @@ async def lifespan(app: FastAPI):
     # Initialize a custom queue
     app.state.task_queue = CustomQueue()
     app.state.pending_results = {}
+    app.state.last_fetch_time = 0
     yield
     # Shutdown
     # Add cleanup code here if needed

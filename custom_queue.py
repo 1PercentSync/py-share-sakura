@@ -80,7 +80,7 @@ class Task:
                  request_body: dict,
                  requester_id: int,
                  is_urgent: bool = False,
-                 retry_count: int = 0,
+                 try_count: int = 0,
                  first_provider_id: int = None,
                  task_id: str = None):
         """
@@ -88,14 +88,15 @@ class Task:
             request_body: The POST request body containing task details
             requester_id: ID of the user requesting the task
             is_urgent: Whether this is an urgent request due to computing power shortage
-            retry_count: Number of times this task has been retried
+            try_count: Number of times this task has been tried
             first_provider_id: ID of the first provider who processed this task
             task_id: Unique identifier for the task
         """
         self.request_body = request_body
         self.requester_id = requester_id
         self.is_urgent = is_urgent
-        self.retry_count = retry_count
+        self.try_count = try_count
         self.first_provider_id = first_provider_id
         self.task_id = task_id or str(uuid.uuid4())
-        self.created_at = int(time.time())  # Add creation timestamp
+        self.created_at = time.time()  # Add creation timestamp
+        self.claimed_at = None

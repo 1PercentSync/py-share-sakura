@@ -2,7 +2,7 @@ from database import is_token_valid, get_user_credit, set_temp_ban
 from fastapi import HTTPException, FastAPI
 from models import is_valid_model, AVAILABLE_MODELS, verify_model_meta
 from utils import parse_user_token
-from custom_queue import Task
+from custom_queue import Task, QueueMode
 import uuid
 import asyncio
 import time
@@ -60,7 +60,7 @@ async def chat_completions_handler(user_token: str, model_name: str, request: di
     task_id = str(uuid.uuid4())
     result_future = asyncio.Future()
     app.state.pending_results[task_id] = result_future
-    task = Task(request_body=request, requester_id=user_id, is_urgent=user_priority > 0, is_retry=False, first_provider_id=None, task_id=task_id)
+    task = Task(request_body=request, requester_id=user_id, is_urgent=user_priority > 0, try_count=0, first_provider_id=None, task_id=task_id)
     
     #Add task to queue
     app.state.task_queue.put(task, user_priority)
@@ -145,6 +145,46 @@ async def fetch_task_handler(user_token: str, submit: dict, app: FastAPI):
                 }
             }
         )
+    
+    # Check if last fetch time is within 10 seconds
+    if time.time() - app.state.last_fetch_time < 1:
+        queue_mode=QueueMode.PURE_FIFO
+    elif time.time() - app.state.last_fetch_time < 5:
+        queue_mode=QueueMode.TWO_LEVEL
+    else:
+        queue_mode=QueueMode.STRICT_PRIORITY
+    
+    # Update last fetch time
+    app.state.last_fetch_time = time.time()
+    
+    # Get task from queue with time check
+    while True:
+        task = app.state.task_queue.get(queue_mode)
+        
+        if task is None:
+            return {
+                "status": "empty",
+                "message": "No tasks available in queue"
+            }
+            
+        current_time = time.time()
+        time_elapsed = current_time - task.created_at
+        
+        # Skip tasks that are likely to timeout soon
+        if (task.try_count == 0 and time_elapsed > 58) or \
+           (task.try_count == 1 and time_elapsed > 118):
+            continue
+            
+        # Found a valid task
+        break
+    
+    # Set task attributes
+    task.is_urgent = queue_mode != QueueMode.PURE_FIFO
+    task.try_count += 1
+    task.first_provider_id = user_id
+    task.claimed_at = time.time()
+    
+    return task
 
 async def submit_result_handler(user_token: str, submit: dict):
     return {"message": "Hello World"}
