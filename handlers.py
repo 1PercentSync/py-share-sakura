@@ -68,10 +68,29 @@ async def chat_completions_handler(user_token: str, model_name: str, request: di
         result = await asyncio.wait_for(result_future, timeout=180)  # 在这里等待，直到有人调用 future.set_result()
         return result
     except asyncio.TimeoutError:
-        return {"error": "请求超时"}
+        # 1. 从 pending_results 中移除
+        app.state.pending_results.pop(task_id, None)
+        
+        # 2. 从任务队列中移除
+        await app.state.task_queue.remove_task(task_id)
+        
+        raise HTTPException(
+            status_code=408,
+            detail={
+                "error": {
+                    "message": "Request timeout",
+                    "type": "timeout_error",
+                    "code": "timeout"
+                }
+            }
+        )
     
+async def fetch_task_handler(user_token: str, submit: dict):
+    pass
 
-    
+async def submit_result_handler(user_token: str, submit: dict):
+    pass
+
 async def list_models_handler(user_token: str, model_name: str):
     # Parse user token into user_id and token
     try:

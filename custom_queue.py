@@ -2,6 +2,7 @@ from queue import Queue
 from typing import Any, Optional
 from enum import Enum
 import uuid
+import time
 
 class QueueMode(Enum):
     PURE_FIFO = 1      # Pure FIFO mode
@@ -59,6 +60,19 @@ class CustomQueue:
     def empty(self) -> bool:
         """Check if the queue is empty"""
         return self.queue.empty()
+    
+    def remove_task(self, task_id: str) -> None:
+        """Remove a task from queue by its task_id"""
+        # Convert queue to list
+        items = []
+        while not self.queue.empty():
+            item = self.queue.get()
+            if item.item.task_id != task_id:  # 只保留不匹配的任务
+                items.append(item)
+                
+        # Put back the remaining items
+        for item in items:
+            self.queue.put(item)
 
 class Task:
     def __init__(self, 
@@ -83,3 +97,4 @@ class Task:
         self.is_retry = is_retry
         self.first_provider_id = first_provider_id
         self.task_id = task_id or str(uuid.uuid4())
+        self.created_at = int(time.time())  # Add creation timestamp
