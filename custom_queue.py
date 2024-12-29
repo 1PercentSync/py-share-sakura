@@ -3,6 +3,7 @@ from typing import Any, Optional
 from enum import Enum
 import uuid
 import time
+from threading import Lock
 
 class QueueMode(Enum):
     PURE_FIFO = 1      # Pure FIFO mode
@@ -23,39 +24,39 @@ class CustomQueue:
     def __init__(self):
         self.queue = Queue()
         self.sequence_counter = 0
+        self.lock = Lock()  # Add lock
     
     def put(self, item: Any, priority: int = 0) -> None:
         """Put an item into the queue with specified priority"""
-        priority_item = PriorityItem(item, priority, self.sequence_counter)
-        self.sequence_counter += 1
-        self.queue.put(priority_item)
+        with self.lock:
+            priority_item = PriorityItem(item, priority, self.sequence_counter)
+            self.sequence_counter += 1
+            self.queue.put(priority_item)
     
     def get(self, mode: QueueMode = QueueMode.PURE_FIFO) -> Optional[Any]:
         """Get an item from the queue based on the specified mode"""
-        if self.queue.empty():
-            return None
-            
-        # Convert queue to list for sorting
-        items = []
-        while not self.queue.empty():
-            items.append(self.queue.get())
-            
-        if mode == QueueMode.PURE_FIFO:
-            # Sort only by sequence number
-            items.sort(key=lambda x: x.sequence)
-        elif mode == QueueMode.TWO_LEVEL:
-            # Sort by priority > 0 first, then by sequence
-            items.sort(key=lambda x: (-1 if x.priority > 0 else 0, x.sequence))
-        else:  # STRICT_PRIORITY
-            # Sort by priority first, then by sequence
-            items.sort()
-            
-        # Get first item and put back the rest
-        result = items[0].item
-        for item in items[1:]:
-            self.queue.put(item)
-            
-        return result
+        with self.lock:
+            if self.queue.empty():
+                return None
+                
+            # Convert queue to list for sorting
+            items = []
+            while not self.queue.empty():
+                items.append(self.queue.get())
+                
+            if mode == QueueMode.PURE_FIFO:
+                items.sort(key=lambda x: x.sequence)
+            elif mode == QueueMode.TWO_LEVEL:
+                items.sort(key=lambda x: (-1 if x.priority > 0 else 0, x.sequence))
+            else:  # STRICT_PRIORITY
+                items.sort()
+                
+            # Get first item and put back the rest
+            result = items[0].item
+            for item in items[1:]:
+                self.queue.put(item)
+                
+            return result
     
     def empty(self) -> bool:
         """Check if the queue is empty"""
@@ -63,16 +64,16 @@ class CustomQueue:
     
     def remove_task(self, task_id: str) -> None:
         """Remove a task from queue by its task_id"""
-        # Convert queue to list
-        items = []
-        while not self.queue.empty():
-            item = self.queue.get()
-            if item.item.task_id != task_id:  # 只保留不匹配的任务
-                items.append(item)
-                
-        # Put back the remaining items
-        for item in items:
-            self.queue.put(item)
+        with self.lock:
+            items = []
+            while not self.queue.empty():
+                item = self.queue.get()
+                if item.item.task_id != task_id:
+                    items.append(item)
+                    
+            # Put back the remaining items
+            for item in items:
+                self.queue.put(item)
 
 class Task:
     def __init__(self, 
