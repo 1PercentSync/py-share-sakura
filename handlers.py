@@ -70,14 +70,26 @@ async def chat_completions_handler(user_token: str, model_name: str, request: di
         result = await asyncio.wait_for(result_future, timeout=60)
         return result
     except asyncio.TimeoutError:
-        # Check if first_provider_id is set
+        # If task is claimed, enter monitoring loop
         if task.first_provider_id is not None:
-            try:
-                # Extend timeout by 120 seconds
-                result = await asyncio.wait_for(result_future, timeout=120)
-                return result
-            except asyncio.TimeoutError:
-                pass
+            remaining_time = 120  # Additional timeout
+            check_interval = 5  # Check every 5 seconds
+            
+            while remaining_time > 0:
+                current_time = time.time()
+                # Check if current provider has taken too long
+                if task.claimed_at and current_time - task.claimed_at > 60 and task.try_count < 2:
+                    # Reset task for retry
+                    task.first_provider_id = None
+                    task.claimed_at = None
+                    task.try_count += 1
+                    try:
+                        # Wait for new provider
+                        result = await asyncio.wait_for(result_future, timeout=60)
+                        return result
+                    except asyncio.TimeoutError:
+                        pass
+                    break  # Exit loop if retry timeout
         
         # If total 180 seconds timeout, check retry_count
         if task.retry_count > 1:
