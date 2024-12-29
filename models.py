@@ -16,5 +16,9 @@ AVAILABLE_MODELS = {
     }
 }
 
+def get_default_model() -> str:
+    """Get the first model from AVAILABLE_MODELS as default"""
+    return next(iter(AVAILABLE_MODELS))
+
 def is_valid_model(model_name: str) -> bool:
     return model_name in AVAILABLE_MODELS
