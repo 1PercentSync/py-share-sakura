@@ -2,8 +2,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from models import SubmitResultRequest, ACCEPTABLE_MODELS, FetchTaskRequest
 from database import init_db
+from handlers import list_models_handler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -32,17 +32,17 @@ async def chat_completions(user_token: str, model_name: str, request: dict):
     return {"message": "Hello World"}
 
 @app.post("/{user_token}/fetch_task")
-async def fetch_task(user_token: str, request: FetchTaskRequest):
+async def fetch_task(user_token: str, request: dict):
     return {"message": "Hello World"}
 
 @app.post("/{user_token}/submit_result")
-async def submit_result(user_token: str, submit: SubmitResultRequest):
+async def submit_result(user_token: str, submit: dict):
     """Submit processing result"""
     return {"message": "Hello World"}
 
 @app.get("/{user_token}/{model_name}/v1/models")
 async def list_models(user_token: str, model_name: str):
-    return {"message": "Hello World"}
+    return await list_models_handler(user_token, model_name)
 
 if __name__ == "__main__":
     import uvicorn

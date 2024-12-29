@@ -1,6 +1,7 @@
 import sqlite3
 from utils import generate_random_password
 import asyncio
+import time
 
 def init_db():
     """Initialize SQLite database"""
@@ -219,6 +220,7 @@ def increase_daily_usage(telegram_id: int, amount: int = 1) -> bool:
     conn.close()
     return True
 
+#Unused
 def set_user_ban_status(telegram_id: int, ban: bool = True) -> bool:
     """
     Set user's ban status
@@ -377,6 +379,7 @@ def get_top_daily_usage(limit: int = 5) -> list:
     conn.close()
     return result
 
+#Unused
 def is_temp_banned(telegram_id: int) -> bool:
     """
     Check if user is temporarily banned
@@ -433,6 +436,46 @@ def set_temp_ban(telegram_id: int, ban_until: int) -> bool:
     conn.commit()
     conn.close()
     return True
+
+def is_token_valid(telegram_id: int, token: str) -> bool:
+    """
+    Check if user's token is valid
+    Args:
+        telegram_id: User's Telegram ID
+        token: Token to validate
+    Returns:
+        bool: True if token is valid, False otherwise
+    """
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    
+    # Check if user exists and get token, ban status and temp ban timestamp
+    c.execute('''
+        SELECT token, is_banned, temp_ban_until
+        FROM users 
+        WHERE telegram_id = ?
+    ''', (telegram_id,))
+    
+    result = c.fetchone()
+    conn.close()
+    
+    # User doesn't exist
+    if not result:
+        return False
+        
+    stored_token, is_banned, temp_ban_until = result
+    
+    # Check permanent ban
+    if is_banned:
+        return False
+        
+    # Check temporary ban
+    current_time = int(time.time())
+    if temp_ban_until > current_time:
+        return False
+        
+    # Check token match
+    return token == stored_token
 
 if __name__ == "__main__":
     init_db()
