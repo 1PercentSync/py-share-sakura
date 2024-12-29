@@ -1,5 +1,6 @@
 import sqlite3
 from utils import generate_random_password
+import asyncio
 
 def init_db():
     """Initialize SQLite database"""
@@ -16,7 +17,8 @@ def init_db():
             credit INTEGER DEFAULT 0,
             total_usage INTEGER DEFAULT 0,
             daily_usage INTEGER DEFAULT 0,
-            is_banned BOOLEAN DEFAULT 0
+            is_banned BOOLEAN DEFAULT 0,
+            temp_ban_until INTEGER DEFAULT 0
         )
     ''')
     
@@ -56,10 +58,10 @@ def create_or_update_user(telegram_id: int, telegram_name: str = None) -> str:
         # Generate random token for new user
         token = generate_random_password()
         
-        # Insert new user
+        # Insert new user with temp_ban_until = 0
         c.execute('''
-            INSERT INTO users (telegram_id, telegram_name, token)
-            VALUES (?, ?, ?)
+            INSERT INTO users (telegram_id, telegram_name, token, temp_ban_until)
+            VALUES (?, ?, ?, 0)
         ''', (telegram_id, telegram_name or str(telegram_id), token))
         conn.commit()
     
@@ -374,6 +376,63 @@ def get_top_daily_usage(limit: int = 5) -> list:
     result = c.fetchall()
     conn.close()
     return result
+
+def is_temp_banned(telegram_id: int) -> bool:
+    """
+    Check if user is temporarily banned
+    Args:
+        telegram_id: User's Telegram ID
+    Returns:
+        bool: True if user is temp banned and ban period hasn't expired, False otherwise
+    """
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    
+    # Get user's temp ban timestamp
+    c.execute('''
+        SELECT temp_ban_until 
+        FROM users 
+        WHERE telegram_id = ?
+    ''', (telegram_id,))
+    
+    result = c.fetchone()
+    conn.close()
+    
+    if not result:
+        return False
+    
+    # Compare with current timestamp
+    current_time = int(asyncio.get_event_loop().time())
+    return result[0] > current_time
+
+def set_temp_ban(telegram_id: int, ban_until: int) -> bool:
+    """
+    Set user's temporary ban end time
+    Args:
+        telegram_id: User's Telegram ID
+        ban_until: Unix timestamp when ban should end (0 to remove temp ban)
+    Returns:
+        bool: True if successful, False if user doesn't exist
+    """
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    
+    # Check if user exists
+    c.execute('SELECT 1 FROM users WHERE telegram_id = ?', (telegram_id,))
+    if not c.fetchone():
+        conn.close()
+        return False
+        
+    # Update temp ban timestamp
+    c.execute('''
+        UPDATE users 
+        SET temp_ban_until = ?
+        WHERE telegram_id = ?
+    ''', (ban_until, telegram_id))
+    
+    conn.commit()
+    conn.close()
+    return True
 
 if __name__ == "__main__":
     init_db()
