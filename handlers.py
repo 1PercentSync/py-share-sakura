@@ -85,7 +85,7 @@ async def chat_completions_handler(user_token: str, model_name: str, request: di
                     task.try_count += 1
                     try:
                         # Wait for new provider
-                        result = await asyncio.wait_for(result_future, timeout=60)
+                        result = await asyncio.wait_for(result_future, timeout=remaining_time)
                         return result
                     except asyncio.TimeoutError:
                         pass
@@ -99,8 +99,7 @@ async def chat_completions_handler(user_token: str, model_name: str, request: di
         # Remove from pending_results
         app.state.pending_results.pop(task_id, None)
         
-        # Remove from task_queue
-        await app.state.task_queue.remove_task(task_id)
+        #Task removed by fetch_task_handler
         
         raise HTTPException(
             status_code=408,
